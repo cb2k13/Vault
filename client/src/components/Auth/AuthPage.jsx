@@ -57,7 +57,6 @@ export default function AuthPage() {
   return (
     <div className="auth-bg">
       <div className="auth-card">
-        <div className="auth-logo">🔒</div>
         <div className="auth-title">VAULT</div>
         <div className="auth-subtitle">End-to-end encrypted messaging</div>
 
