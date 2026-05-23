@@ -263,9 +263,29 @@ io.use((socket, next) => {
   }
 });
 
+// userId -> Set of socketIds (handles multiple tabs)
+const onlineUsers = new Map();
+
 io.on('connection', (socket) => {
   const uid = socket.user.id;
   socket.join(`user:${uid}`);
+
+  // Presence: register this socket
+  if (!onlineUsers.has(uid)) onlineUsers.set(uid, new Set());
+  onlineUsers.get(uid).add(socket.id);
+  socket.emit('online_users', [...onlineUsers.keys()]);
+  socket.broadcast.emit('user_online', uid);
+
+  // Typing: forward to recipient
+  socket.on('typing_start', ({ conversation_id, recipient_id }) => {
+    if (!conversation_id || !recipient_id) return;
+    io.to(`user:${recipient_id}`).emit('typing_start', { user_id: uid, conversation_id });
+  });
+
+  socket.on('typing_stop', ({ conversation_id, recipient_id }) => {
+    if (!conversation_id || !recipient_id) return;
+    io.to(`user:${recipient_id}`).emit('typing_stop', { user_id: uid, conversation_id });
+  });
 
   socket.on('send_message', async (payload) => {
     const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender } = payload;
@@ -306,7 +326,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {});
+  socket.on('disconnect', () => {
+    const sockets = onlineUsers.get(uid);
+    if (sockets) {
+      sockets.delete(socket.id);
+      if (sockets.size === 0) {
+        onlineUsers.delete(uid);
+        socket.broadcast.emit('user_offline', uid);
+      }
+    }
+  });
 });
 
 // ── Global error handler ──────────────────────────────────────────────────────

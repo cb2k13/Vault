@@ -182,7 +182,8 @@ body {
 .conv-item:hover { background: var(--surface2); }
 .conv-item.active { background: var(--accent-dim); border: 1px solid rgba(245,158,11,0.2); }
 
-.conv-avatar { font-size: 22px; flex-shrink: 0; }
+.conv-avatar-wrap { position: relative; flex-shrink: 0; width: 26px; height: 26px; display: flex; align-items: center; }
+.conv-avatar { font-size: 22px; }
 .conv-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
 .conv-preview { font-size: 11px; color: var(--text-dim); }
 
@@ -210,9 +211,27 @@ body {
   padding: 14px 20px; border-bottom: 1px solid var(--border);
   background: var(--surface); flex-shrink: 0;
 }
+.chat-header-avatar-wrap { position: relative; flex-shrink: 0; }
 .chat-header-avatar { font-size: 24px; }
 .chat-header-name { font-size: 15px; font-weight: 600; }
 .chat-header-status { font-size: 11px; color: var(--green); }
+.chat-header-typing { color: var(--text-dim) !important; animation: typing-pulse 1.2s ease-in-out infinite; }
+
+/* ── Presence ──────────────────────────────────────────────────────────────── */
+.presence-dot {
+  position: absolute; bottom: 0; right: -2px;
+  width: 9px; height: 9px;
+  background: var(--green); border: 2px solid var(--surface);
+  border-radius: 50%;
+}
+.presence-dot-lg { width: 11px; height: 11px; bottom: -1px; right: -3px; border-color: var(--surface); }
+
+.result-avatar-wrap { position: relative; flex-shrink: 0; }
+
+@keyframes typing-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
 
 /* ── Messages ──────────────────────────────────────────────────────────────── */
 .thread-scroll {

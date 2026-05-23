@@ -13,6 +13,48 @@ export default function ChatPage() {
   const [activeConv, setActiveConv]       = useState(null);
   const [messages, setMessages]           = useState([]);
   const [sending, setSending]             = useState(false);
+  const [onlineUsers, setOnlineUsers]     = useState(new Set());
+  const [typingConvIds, setTypingConvIds] = useState(new Set());
+
+  // Presence + typing socket events
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const typingTimers = new Map();
+
+    function onOnlineUsers(ids) { setOnlineUsers(new Set(ids)); }
+    function onUserOnline(id)   { setOnlineUsers(prev => new Set([...prev, id])); }
+    function onUserOffline(id)  { setOnlineUsers(prev => { const s = new Set(prev); s.delete(id); return s; }); }
+
+    function onTypingStart({ conversation_id }) {
+      setTypingConvIds(prev => new Set([...prev, conversation_id]));
+      clearTimeout(typingTimers.get(conversation_id));
+      typingTimers.set(conversation_id, setTimeout(() => {
+        setTypingConvIds(prev => { const s = new Set(prev); s.delete(conversation_id); return s; });
+      }, 3000));
+    }
+    function onTypingStop({ conversation_id }) {
+      clearTimeout(typingTimers.get(conversation_id));
+      typingTimers.delete(conversation_id);
+      setTypingConvIds(prev => { const s = new Set(prev); s.delete(conversation_id); return s; });
+    }
+
+    socket.on('online_users', onOnlineUsers);
+    socket.on('user_online',  onUserOnline);
+    socket.on('user_offline', onUserOffline);
+    socket.on('typing_start', onTypingStart);
+    socket.on('typing_stop',  onTypingStop);
+
+    return () => {
+      socket.off('online_users', onOnlineUsers);
+      socket.off('user_online',  onUserOnline);
+      socket.off('user_offline', onUserOffline);
+      socket.off('typing_start', onTypingStart);
+      socket.off('typing_stop',  onTypingStop);
+      typingTimers.forEach(t => clearTimeout(t));
+    };
+  }, []);
 
   // Load conversations on mount
   useEffect(() => {
@@ -88,6 +130,22 @@ export default function ChatPage() {
     return () => socket.off('message_sent', onMessageSent);
   }, [activeConv?.id]);
 
+  const handleTypingStart = useCallback(() => {
+    if (!activeConv) return;
+    getSocket()?.emit('typing_start', {
+      conversation_id: activeConv.id,
+      recipient_id: activeConv.other_user.id,
+    });
+  }, [activeConv]);
+
+  const handleTypingStop = useCallback(() => {
+    if (!activeConv) return;
+    getSocket()?.emit('typing_stop', {
+      conversation_id: activeConv.id,
+      recipient_id: activeConv.other_user.id,
+    });
+  }, [activeConv]);
+
   function handleNewConversation(conv) {
     setConversations(prev => {
       if (prev.find(c => c.id === conv.id)) return prev;
@@ -102,6 +160,7 @@ export default function ChatPage() {
         activeId={activeConv?.id}
         onSelect={setActiveConv}
         onNewConversation={handleNewConversation}
+        onlineUsers={onlineUsers}
       />
 
       <main className="chat-main">
@@ -115,16 +174,30 @@ export default function ChatPage() {
         ) : (
           <>
             <div className="chat-header">
-              <div className="chat-header-avatar">👤</div>
+              <div className="chat-header-avatar-wrap">
+                <div className="chat-header-avatar">👤</div>
+                {onlineUsers.has(activeConv.other_user?.id) && <span className="presence-dot presence-dot-lg" />}
+              </div>
               <div className="chat-header-info">
                 <div className="chat-header-name">{activeConv.other_user?.username}</div>
-                <div className="chat-header-status">🔒 End-to-end encrypted</div>
+                <div className={`chat-header-status${typingConvIds.has(activeConv.id) ? ' chat-header-typing' : ''}`}>
+                  {typingConvIds.has(activeConv.id)
+                    ? 'typing…'
+                    : onlineUsers.has(activeConv.other_user?.id)
+                      ? 'Online · 🔒 encrypted'
+                      : '🔒 End-to-end encrypted'}
+                </div>
               </div>
             </div>
 
             <MessageThread messages={messages} privateKey={privateKey} />
 
-            <MessageInput onSend={handleSend} disabled={sending || !privateKey} />
+            <MessageInput
+              onSend={handleSend}
+              disabled={sending || !privateKey}
+              onTypingStart={handleTypingStart}
+              onTypingStop={handleTypingStop}
+            />
           </>
         )}
       </main>

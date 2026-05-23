@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { searchUsers, openConversation } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-export default function Sidebar({ conversations, activeId, onSelect, onNewConversation }) {
+export default function Sidebar({ conversations, activeId, onSelect, onNewConversation, onlineUsers = new Set() }) {
   const { user, signOut } = useAuth();
   const [query, setQuery]   = useState('');
   const [results, setResults] = useState([]);
@@ -53,7 +53,10 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
           <div className="search-results">
             {results.map(u => (
               <button key={u.id} className="search-result-item" onClick={() => startChat(u)}>
-                <span className="result-avatar">👤</span>
+                <div className="result-avatar-wrap">
+                  <span className="result-avatar">👤</span>
+                  {onlineUsers.has(u.id) && <span className="presence-dot" />}
+                </div>
                 <span className="result-name">{u.username}</span>
               </button>
             ))}
@@ -73,7 +76,10 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
               className={`conv-item${conv.id === activeId ? ' active' : ''}`}
               onClick={() => onSelect(conv)}
             >
-              <div className="conv-avatar">👤</div>
+              <div className="conv-avatar-wrap">
+                <div className="conv-avatar">👤</div>
+                {onlineUsers.has(other?.id) && <span className="presence-dot" />}
+              </div>
               <div className="conv-info">
                 <div className="conv-name">{other?.username}</div>
                 <div className="conv-preview">🔒 encrypted</div>
