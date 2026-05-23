@@ -15,6 +15,7 @@ export default function ChatPage() {
   const [sending, setSending]             = useState(false);
   const [onlineUsers, setOnlineUsers]     = useState(new Set());
   const [typingConvIds, setTypingConvIds] = useState(new Set());
+  const [unreadCounts, setUnreadCounts]   = useState(new Map());
 
   // Presence + typing socket events
   useEffect(() => {
@@ -76,6 +77,12 @@ export default function ChatPage() {
     function onNewMessage(msg) {
       if (msg.conversation_id === activeConv?.id) {
         setMessages(prev => [...prev, msg]);
+      } else {
+        setUnreadCounts(prev => {
+          const next = new Map(prev);
+          next.set(msg.conversation_id, (next.get(msg.conversation_id) || 0) + 1);
+          return next;
+        });
       }
     }
 
@@ -158,9 +165,18 @@ export default function ChatPage() {
       <Sidebar
         conversations={conversations}
         activeId={activeConv?.id}
-        onSelect={setActiveConv}
+        onSelect={conv => {
+          setActiveConv(conv);
+          setUnreadCounts(prev => {
+            if (!prev.has(conv.id)) return prev;
+            const next = new Map(prev);
+            next.delete(conv.id);
+            return next;
+          });
+        }}
         onNewConversation={handleNewConversation}
         onlineUsers={onlineUsers}
+        unreadCounts={unreadCounts}
       />
 
       <main className="chat-main">

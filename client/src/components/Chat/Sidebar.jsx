@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { searchUsers, openConversation } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-export default function Sidebar({ conversations, activeId, onSelect, onNewConversation, onlineUsers = new Set() }) {
+export default function Sidebar({ conversations, activeId, onSelect, onNewConversation, onlineUsers = new Set(), unreadCounts = new Map() }) {
   const { user, signOut } = useAuth();
   const [query, setQuery]   = useState('');
   const [results, setResults] = useState([]);
@@ -84,6 +84,11 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
                 <div className="conv-name">{other?.username}</div>
                 <div className="conv-preview">🔒 encrypted</div>
               </div>
+              {unreadCounts.get(conv.id) > 0 && (
+                <span className="unread-badge">
+                  {unreadCounts.get(conv.id) > 99 ? '99+' : unreadCounts.get(conv.id)}
+                </span>
+              )}
             </button>
           );
         })}
