@@ -292,6 +292,13 @@ io.on('connection', (socket) => {
     io.to(`user:${recipient_id}`).emit('read_receipt', { conversation_id, reader_id: uid });
   });
 
+  socket.on('react', ({ message_id, emoji, conversation_id, recipient_id }) => {
+    if (!message_id || !emoji || !conversation_id || !recipient_id) return;
+    const payload = { message_id, emoji, user_id: uid, conversation_id };
+    socket.emit('reaction_update', payload);
+    io.to(`user:${recipient_id}`).emit('reaction_update', payload);
+  });
+
   socket.on('send_message', async (payload) => {
     const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender } = payload;
     if (!conversation_id || !recipient_id || !ciphertext || !iv || !enc_key_recipient || !enc_key_sender) return;

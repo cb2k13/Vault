@@ -19,6 +19,7 @@ export default function ChatPage() {
   const [unreadCounts, setUnreadCounts]   = useState(new Map());
   const [readConvIds, setReadConvIds]     = useState(new Set());
   const [showSettings, setShowSettings]   = useState(false);
+  const [reactions, setReactions]         = useState(new Map()); // msgId -> Map<emoji, Set<userId>>
 
   // Presence + typing socket events
   useEffect(() => {
@@ -48,20 +49,34 @@ export default function ChatPage() {
       setReadConvIds(prev => new Set([...prev, conversation_id]));
     }
 
+    function onReactionUpdate({ message_id, emoji, user_id }) {
+      setReactions(prev => {
+        const next        = new Map(prev);
+        const msgMap      = new Map(next.get(message_id) || []);
+        const users       = new Set(msgMap.get(emoji) || []);
+        users.has(user_id) ? users.delete(user_id) : users.add(user_id);
+        users.size === 0 ? msgMap.delete(emoji) : msgMap.set(emoji, users);
+        msgMap.size === 0 ? next.delete(message_id) : next.set(message_id, msgMap);
+        return next;
+      });
+    }
+
     socket.on('online_users', onOnlineUsers);
     socket.on('user_online',  onUserOnline);
     socket.on('user_offline', onUserOffline);
     socket.on('typing_start', onTypingStart);
     socket.on('typing_stop',  onTypingStop);
-    socket.on('read_receipt', onReadReceipt);
+    socket.on('read_receipt',    onReadReceipt);
+    socket.on('reaction_update', onReactionUpdate);
 
     return () => {
-      socket.off('online_users', onOnlineUsers);
-      socket.off('user_online',  onUserOnline);
-      socket.off('user_offline', onUserOffline);
-      socket.off('typing_start', onTypingStart);
-      socket.off('typing_stop',  onTypingStop);
-      socket.off('read_receipt', onReadReceipt);
+      socket.off('online_users',    onOnlineUsers);
+      socket.off('user_online',     onUserOnline);
+      socket.off('user_offline',    onUserOffline);
+      socket.off('typing_start',    onTypingStart);
+      socket.off('typing_stop',     onTypingStop);
+      socket.off('read_receipt',    onReadReceipt);
+      socket.off('reaction_update', onReactionUpdate);
       typingTimers.forEach(t => clearTimeout(t));
     };
   }, []);
@@ -146,6 +161,16 @@ export default function ChatPage() {
     return () => socket.off('message_sent', onMessageSent);
   }, [activeConv?.id]);
 
+  const handleReact = useCallback((message_id, emoji) => {
+    if (!activeConv) return;
+    getSocket()?.emit('react', {
+      message_id,
+      emoji,
+      conversation_id: activeConv.id,
+      recipient_id: activeConv.other_user.id,
+    });
+  }, [activeConv]);
+
   const handleTypingStart = useCallback(() => {
     if (!activeConv) return;
     getSocket()?.emit('typing_start', {
@@ -220,7 +245,13 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <MessageThread messages={messages} privateKey={privateKey} isRead={readConvIds.has(activeConv.id)} />
+            <MessageThread
+              messages={messages}
+              privateKey={privateKey}
+              isRead={readConvIds.has(activeConv.id)}
+              reactions={reactions}
+              onReact={handleReact}
+            />
 
             <MessageInput
               onSend={handleSend}
