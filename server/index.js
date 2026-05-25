@@ -295,7 +295,6 @@ io.on('connection', (socket) => {
   socket.on('react', ({ message_id, emoji, conversation_id, recipient_id }) => {
     if (!message_id || !emoji || !conversation_id || !recipient_id) return;
     const payload = { message_id, emoji, user_id: uid, conversation_id };
-    socket.emit('reaction_update', payload);
     io.to(`user:${recipient_id}`).emit('reaction_update', payload);
   });
 

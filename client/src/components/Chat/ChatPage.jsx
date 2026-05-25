@@ -163,13 +163,23 @@ export default function ChatPage() {
 
   const handleReact = useCallback((message_id, emoji) => {
     if (!activeConv) return;
+    // Optimistic update — sender sees reaction instantly without waiting for echo
+    setReactions(prev => {
+      const next   = new Map(prev);
+      const msgMap = new Map(next.get(message_id) || []);
+      const users  = new Set(msgMap.get(emoji) || []);
+      users.has(user.id) ? users.delete(user.id) : users.add(user.id);
+      users.size === 0 ? msgMap.delete(emoji) : msgMap.set(emoji, users);
+      msgMap.size === 0 ? next.delete(message_id) : next.set(message_id, msgMap);
+      return next;
+    });
     getSocket()?.emit('react', {
       message_id,
       emoji,
       conversation_id: activeConv.id,
       recipient_id: activeConv.other_user.id,
     });
-  }, [activeConv]);
+  }, [activeConv, user.id]);
 
   const handleTypingStart = useCallback(() => {
     if (!activeConv) return;
