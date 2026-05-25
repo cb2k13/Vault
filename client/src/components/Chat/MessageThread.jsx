@@ -5,10 +5,21 @@ import { decryptMessage } from '../../utils/crypto';
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
 function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, onReact }) {
-  const isSender = msg.sender_id === userId;
+  const isSender   = msg.sender_id === userId;
   const [text, setText]       = useState(null);
   const [failed, setFailed]   = useState(false);
   const [hovered, setHovered] = useState(false);
+  const hideTimer  = useRef(null);
+
+  function handleMouseEnter() {
+    clearTimeout(hideTimer.current);
+    setHovered(true);
+  }
+  function handleMouseLeave() {
+    hideTimer.current = setTimeout(() => setHovered(false), 200);
+  }
+
+  useEffect(() => () => clearTimeout(hideTimer.current), []);
 
   useEffect(() => {
     if (!privateKey) return;
@@ -21,9 +32,9 @@ function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, o
 
   return (
     <div
-      className={`msg-row${isSender ? ' msg-row-self' : ' msg-row-other'}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className={`msg-row${isSender ? ' msg-row-self' : ' msg-row-other'}${hovered ? ' msg-row-hovered' : ''}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div className="msg-col">
         {hovered && (

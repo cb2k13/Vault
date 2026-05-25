@@ -265,9 +265,10 @@ body {
 .thread-empty-icon { font-size: 36px; opacity: 0.4; }
 .thread-empty-text { font-size: 13px; color: var(--text-dim); }
 
-.msg-row { display: flex; }
-.msg-row-self  { justify-content: flex-end; }
-.msg-row-other { justify-content: flex-start; }
+.msg-row { display: flex; position: relative; z-index: 0; }
+.msg-row-self   { justify-content: flex-end; }
+.msg-row-other  { justify-content: flex-start; }
+.msg-row-hovered { z-index: 10; }
 
 .msg-bubble {
   padding: 10px 14px; border-radius: 16px;
