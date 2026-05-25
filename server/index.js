@@ -287,6 +287,11 @@ io.on('connection', (socket) => {
     io.to(`user:${recipient_id}`).emit('typing_stop', { user_id: uid, conversation_id });
   });
 
+  socket.on('mark_read', ({ conversation_id, recipient_id }) => {
+    if (!conversation_id || !recipient_id) return;
+    io.to(`user:${recipient_id}`).emit('read_receipt', { conversation_id, reader_id: uid });
+  });
+
   socket.on('send_message', async (payload) => {
     const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender } = payload;
     if (!conversation_id || !recipient_id || !ciphertext || !iv || !enc_key_recipient || !enc_key_sender) return;

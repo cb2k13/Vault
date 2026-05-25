@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { searchUsers, openConversation } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
-export default function Sidebar({ conversations, activeId, onSelect, onNewConversation, onlineUsers = new Set(), unreadCounts = new Map() }) {
+export default function Sidebar({ conversations, activeId, onSelect, onNewConversation, onlineUsers = new Set(), unreadCounts = new Map(), onSettingsOpen }) {
   const { user, signOut } = useAuth();
   const [query, setQuery]   = useState('');
   const [results, setResults] = useState([]);
@@ -38,6 +38,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
         <div className="sidebar-logo">🔒 Vault</div>
         <div className="sidebar-user">
           <span className="sidebar-username">{user?.username}</span>
+          <button className="btn-icon" onClick={onSettingsOpen} title="Settings">⚙</button>
           <button className="btn-signout" onClick={signOut} title="Sign out">⎋</button>
         </div>
       </div>
@@ -84,6 +85,11 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
                 <div className="conv-name">{other?.username}</div>
                 <div className="conv-preview">🔒 encrypted</div>
               </div>
+              {(unreadCounts.get(conv.id) || 0) > 0 && (
+                <span className="unread-badge">
+                  {unreadCounts.get(conv.id) > 99 ? '99+' : unreadCounts.get(conv.id)}
+                </span>
+              )}
               {unreadCounts.get(conv.id) > 0 && (
                 <span className="unread-badge">
                   {unreadCounts.get(conv.id) > 99 ? '99+' : unreadCounts.get(conv.id)}

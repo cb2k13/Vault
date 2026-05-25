@@ -13,6 +13,15 @@
   --red: #ef4444;
 }
 
+[data-theme="light"] {
+  --bg: #f0f0eb;
+  --surface: #ffffff;
+  --surface2: #e8e8e3;
+  --border: rgba(0,0,0,0.09);
+  --text: #1a1a1a;
+  --text-dim: rgba(0,0,0,0.45);
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -309,6 +318,82 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* ── Unread badge ──────────────────────────────────────────────────────────── */
+.unread-badge {
+  margin-left: auto; flex-shrink: 0;
+  background: var(--accent); color: #0a0a0f;
+  font-size: 11px; font-weight: 700;
+  min-width: 18px; height: 18px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px;
+}
+
+/* ── Read receipt ──────────────────────────────────────────────────────────── */
+.msg-receipt { font-size: 10px; color: var(--text-dim); margin-left: 3px; }
+.msg-receipt-read { color: var(--accent); }
+
+/* ── Settings ──────────────────────────────────────────────────────────────── */
+.btn-icon {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-dim); font-size: 14px; padding: 3px 7px; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-icon:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+.settings-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.settings-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px;
+  width: min(380px, calc(100vw - 32px));
+  box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.settings-header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.settings-title { font-size: 17px; font-weight: 700; }
+.settings-close {
+  background: none; border: none; color: var(--text-dim);
+  font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  transition: color 0.15s;
+}
+.settings-close:hover { color: var(--text); }
+
+.settings-section { display: flex; flex-direction: column; gap: 10px; }
+.settings-section-label {
+  font-size: 10px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-dim);
+}
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 14px; padding: 2px 0;
+}
+.settings-value { font-size: 13px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace; }
+.settings-value-green { color: var(--green); }
+
+.theme-toggle {
+  padding: 6px 14px; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 13px; cursor: pointer;
+  transition: all 0.15s;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+
+.settings-signout {
+  width: 100%; padding: 11px;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px; color: #fca5a5;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.settings-signout:hover { background: rgba(239,68,68,0.2); }
 
 /* ── Mobile ────────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {

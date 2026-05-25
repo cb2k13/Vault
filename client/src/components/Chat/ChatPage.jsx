@@ -6,6 +6,7 @@ import { encryptMessage, importPublicKey } from '../../utils/crypto';
 import Sidebar from './Sidebar';
 import MessageThread from './MessageThread';
 import MessageInput from './MessageInput';
+import Settings from './Settings';
 
 export default function ChatPage() {
   const { user, privateKey } = useAuth();
@@ -16,6 +17,8 @@ export default function ChatPage() {
   const [onlineUsers, setOnlineUsers]     = useState(new Set());
   const [typingConvIds, setTypingConvIds] = useState(new Set());
   const [unreadCounts, setUnreadCounts]   = useState(new Map());
+  const [readConvIds, setReadConvIds]     = useState(new Set());
+  const [showSettings, setShowSettings]   = useState(false);
 
   // Presence + typing socket events
   useEffect(() => {
@@ -41,11 +44,16 @@ export default function ChatPage() {
       setTypingConvIds(prev => { const s = new Set(prev); s.delete(conversation_id); return s; });
     }
 
+    function onReadReceipt({ conversation_id }) {
+      setReadConvIds(prev => new Set([...prev, conversation_id]));
+    }
+
     socket.on('online_users', onOnlineUsers);
     socket.on('user_online',  onUserOnline);
     socket.on('user_offline', onUserOffline);
     socket.on('typing_start', onTypingStart);
     socket.on('typing_stop',  onTypingStop);
+    socket.on('read_receipt', onReadReceipt);
 
     return () => {
       socket.off('online_users', onOnlineUsers);
@@ -53,6 +61,7 @@ export default function ChatPage() {
       socket.off('user_offline', onUserOffline);
       socket.off('typing_start', onTypingStart);
       socket.off('typing_stop',  onTypingStop);
+      socket.off('read_receipt', onReadReceipt);
       typingTimers.forEach(t => clearTimeout(t));
     };
   }, []);
@@ -173,10 +182,15 @@ export default function ChatPage() {
             next.delete(conv.id);
             return next;
           });
+          getSocket()?.emit('mark_read', {
+            conversation_id: conv.id,
+            recipient_id: conv.other_user.id,
+          });
         }}
         onNewConversation={handleNewConversation}
         onlineUsers={onlineUsers}
         unreadCounts={unreadCounts}
+        onSettingsOpen={() => setShowSettings(true)}
       />
 
       <main className="chat-main">
@@ -206,7 +220,7 @@ export default function ChatPage() {
               </div>
             </div>
 
-            <MessageThread messages={messages} privateKey={privateKey} />
+            <MessageThread messages={messages} privateKey={privateKey} isRead={readConvIds.has(activeConv.id)} />
 
             <MessageInput
               onSend={handleSend}
@@ -217,6 +231,7 @@ export default function ChatPage() {
           </>
         )}
       </main>
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

@@ -8,6 +8,11 @@ export default function App() {
   const { user, loading } = useAuth();
 
   useEffect(() => {
+    const saved = localStorage.getItem('vault-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+  }, []);
+
+  useEffect(() => {
     const token = localStorage.getItem('vault_token');
     if (token && user) connectSocket(token);
   }, [user]);

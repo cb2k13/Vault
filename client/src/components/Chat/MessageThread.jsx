@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { decryptMessage } from '../../utils/crypto';
 
-function Message({ msg, privateKey, userId }) {
+function Message({ msg, privateKey, userId, showReceipt, isRead }) {
   const isSender = msg.sender_id === userId;
   const [text, setText]     = useState(null);
   const [failed, setFailed] = useState(false);
@@ -22,13 +22,20 @@ function Message({ msg, privateKey, userId }) {
         {text === null && !failed && <span className="msg-decrypting">🔓 decrypting…</span>}
         {failed && <span className="msg-failed">⚠ decryption failed</span>}
         {text !== null && <span className="msg-text">{text}</span>}
-        <span className="msg-time">{time}</span>
+        <span className="msg-time">
+          {time}
+          {isSender && showReceipt && (
+            <span className={`msg-receipt${isRead ? ' msg-receipt-read' : ''}`}>
+              {isRead ? ' ✓✓' : ' ✓'}
+            </span>
+          )}
+        </span>
       </div>
     </div>
   );
 }
 
-export default function MessageThread({ messages, privateKey }) {
+export default function MessageThread({ messages, privateKey, isRead }) {
   const { user } = useAuth();
   const bottomRef = useRef(null);
 
@@ -45,10 +52,19 @@ export default function MessageThread({ messages, privateKey }) {
     );
   }
 
+  const lastSentIdx = messages.reduce((acc, msg, i) => msg.sender_id === user.id ? i : acc, -1);
+
   return (
     <div className="thread-scroll">
-      {messages.map(msg => (
-        <Message key={msg.id} msg={msg} privateKey={privateKey} userId={user.id} />
+      {messages.map((msg, i) => (
+        <Message
+          key={msg.id}
+          msg={msg}
+          privateKey={privateKey}
+          userId={user.id}
+          showReceipt={i === lastSentIdx}
+          isRead={isRead}
+        />
       ))}
       <div ref={bottomRef} />
     </div>
