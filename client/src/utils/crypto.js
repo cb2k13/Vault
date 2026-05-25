@@ -14,7 +14,10 @@ function fromBase64(b64) {
 }
 
 function hexToBytes(hex) {
-  return new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+  if (typeof hex !== 'string' || hex.length % 2 !== 0 || !/^[0-9a-f]+$/i.test(hex)) {
+    throw new Error('Invalid hex string');
+  }
+  return new Uint8Array(hex.match(/.{2}/g).map(b => parseInt(b, 16)));
 }
 
 export function generateSalt() {

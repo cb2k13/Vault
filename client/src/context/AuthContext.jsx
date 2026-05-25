@@ -9,9 +9,15 @@ export function AuthProvider({ children }) {
   const [loading, setLoading]     = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('vault_user');
-    if (stored) setUser(JSON.parse(stored));
-    setLoading(false);
+    try {
+      const stored = localStorage.getItem('vault_user');
+      if (stored) setUser(JSON.parse(stored));
+    } catch {
+      localStorage.removeItem('vault_user');
+      localStorage.removeItem('vault_token');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   function signIn(userData, token, privKey) {

@@ -40,6 +40,22 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 const apiLimiter  = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false });
 
+// ── Validation helpers ────────────────────────────────────────────────────────
+const UUID_RE        = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const USERNAME_RE    = /^[a-zA-Z0-9_]+$/;
+const isUUID         = s => typeof s === 'string' && UUID_RE.test(s);
+const ALLOWED_EMOJIS = new Set(['👍', '❤️', '😂', '😮', '😢', '🔥']);
+
+// ── Socket rate limiter (50 events / 10 s per user) ───────────────────────────
+const socketBuckets = new Map();
+function socketRateOk(uid) {
+  const now = Date.now();
+  let b = socketBuckets.get(uid);
+  if (!b || now > b.resetAt) { b = { count: 0, resetAt: now + 10_000 }; socketBuckets.set(uid, b); }
+  return ++b.count <= 50;
+}
+setInterval(() => { const now = Date.now(); for (const [k, b] of socketBuckets) if (now > b.resetAt) socketBuckets.delete(k); }, 60_000);
+
 // ── Auth middleware ───────────────────────────────────────────────────────────
 function auth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
@@ -55,11 +71,29 @@ app.post('/api/register', authLimiter, async (req, res) => {
   if (!username || !password || !public_key || !encrypted_private_key || !key_iv || !key_salt) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  if (username.length < 3 || username.length > 20) {
+  if (typeof username !== 'string' || username.length < 3 || username.length > 20) {
     return res.status(400).json({ error: 'Username must be 3–20 characters' });
   }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!USERNAME_RE.test(username)) {
+    return res.status(400).json({ error: 'Username may only contain letters, numbers and underscores' });
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+  if (password.length > 128) {
+    return res.status(400).json({ error: 'Password too long' });
+  }
+  if (typeof public_key !== 'string' || public_key.length > 4096) {
+    return res.status(400).json({ error: 'Invalid public key' });
+  }
+  if (typeof encrypted_private_key !== 'string' || encrypted_private_key.length > 8192) {
+    return res.status(400).json({ error: 'Invalid encrypted key' });
+  }
+  if (typeof key_iv !== 'string' || key_iv.length > 64) {
+    return res.status(400).json({ error: 'Invalid key IV' });
+  }
+  if (typeof key_salt !== 'string' || key_salt.length > 64) {
+    return res.status(400).json({ error: 'Invalid key salt' });
   }
 
   try {
@@ -86,7 +120,10 @@ app.post('/api/register', authLimiter, async (req, res) => {
 // ── Login ─────────────────────────────────────────────────────────────────────
 app.post('/api/login', authLimiter, async (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Invalid credentials' });
+  if (!username || !password || typeof username !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'Invalid credentials' });
+  }
+  if (password.length > 128) return res.status(400).json({ error: 'Invalid credentials' });
 
   try {
     const { data: user } = await supabase
@@ -130,6 +167,7 @@ app.get('/api/users/search', auth, apiLimiter, async (req, res) => {
 
 // ── Get public key ────────────────────────────────────────────────────────────
 app.get('/api/users/:id/pubkey', auth, apiLimiter, async (req, res) => {
+  if (!isUUID(req.params.id)) return res.status(400).json({ error: 'Invalid user ID' });
   try {
     const { data, error } = await supabase
       .from('users')
@@ -175,7 +213,7 @@ app.get('/api/conversations', auth, apiLimiter, async (req, res) => {
 
 app.post('/api/conversations', auth, apiLimiter, async (req, res) => {
   const { participant_b } = req.body || {};
-  if (!participant_b) return res.status(400).json({ error: 'Missing participant' });
+  if (!isUUID(participant_b)) return res.status(400).json({ error: 'Invalid participant' });
 
   const uid = req.user.id;
   if (uid === participant_b) return res.status(400).json({ error: 'Cannot message yourself' });
@@ -219,6 +257,7 @@ app.post('/api/conversations', auth, apiLimiter, async (req, res) => {
 
 // ── Messages ──────────────────────────────────────────────────────────────────
 app.get('/api/conversations/:id/messages', auth, apiLimiter, async (req, res) => {
+  if (!isUUID(req.params.id)) return res.status(400).json({ error: 'Invalid conversation ID' });
   const uid = req.user.id;
   try {
     // Verify user is a participant
@@ -278,29 +317,35 @@ io.on('connection', (socket) => {
 
   // Typing: forward to recipient
   socket.on('typing_start', ({ conversation_id, recipient_id }) => {
-    if (!conversation_id || !recipient_id) return;
+    if (!socketRateOk(uid) || !isUUID(conversation_id) || !isUUID(recipient_id)) return;
     io.to(`user:${recipient_id}`).emit('typing_start', { user_id: uid, conversation_id });
   });
 
   socket.on('typing_stop', ({ conversation_id, recipient_id }) => {
-    if (!conversation_id || !recipient_id) return;
+    if (!socketRateOk(uid) || !isUUID(conversation_id) || !isUUID(recipient_id)) return;
     io.to(`user:${recipient_id}`).emit('typing_stop', { user_id: uid, conversation_id });
   });
 
   socket.on('mark_read', ({ conversation_id, recipient_id }) => {
-    if (!conversation_id || !recipient_id) return;
+    if (!socketRateOk(uid) || !isUUID(conversation_id) || !isUUID(recipient_id)) return;
     io.to(`user:${recipient_id}`).emit('read_receipt', { conversation_id, reader_id: uid });
   });
 
   socket.on('react', ({ message_id, emoji, conversation_id, recipient_id }) => {
-    if (!message_id || !emoji || !conversation_id || !recipient_id) return;
-    const payload = { message_id, emoji, user_id: uid, conversation_id };
-    io.to(`user:${recipient_id}`).emit('reaction_update', payload);
+    if (!socketRateOk(uid) || !isUUID(message_id) || !isUUID(conversation_id) || !isUUID(recipient_id)) return;
+    if (!ALLOWED_EMOJIS.has(emoji)) return;
+    io.to(`user:${recipient_id}`).emit('reaction_update', { message_id, emoji, user_id: uid, conversation_id });
   });
 
   socket.on('send_message', async (payload) => {
+    if (!socketRateOk(uid)) return;
     const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender } = payload;
-    if (!conversation_id || !recipient_id || !ciphertext || !iv || !enc_key_recipient || !enc_key_sender) return;
+    if (!isUUID(conversation_id) || !isUUID(recipient_id)) return;
+    if (typeof ciphertext !== 'string' || typeof iv !== 'string' ||
+        typeof enc_key_recipient !== 'string' || typeof enc_key_sender !== 'string') return;
+    // Size limits: RSA-2048 key = 256 bytes → ~344 base64 chars; IV = 12 bytes → 16 chars
+    if (ciphertext.length > 65536 || iv.length > 32 ||
+        enc_key_recipient.length > 512 || enc_key_sender.length > 512) return;
 
     try {
       // Verify sender is a participant
