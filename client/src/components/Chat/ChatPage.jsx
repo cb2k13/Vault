@@ -195,7 +195,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="chat-layout">
+    <div className={`chat-layout${activeConv ? ' mobile-chat-open' : ''}`}>
       <Sidebar
         conversations={conversations}
         activeId={activeConv?.id}
@@ -229,6 +229,7 @@ export default function ChatPage() {
         ) : (
           <>
             <div className="chat-header">
+              <button className="btn-back" onClick={() => setActiveConv(null)}>&#8592;</button>
               <div className="chat-header-avatar-wrap">
                 <div className="chat-header-avatar">👤</div>
                 {onlineUsers.has(activeConv.other_user?.id) && <span className="presence-dot presence-dot-lg" />}
