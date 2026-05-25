@@ -17,8 +17,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) { console.error('FATAL: JWT_SECRET not set'); process.exit(1); }
 
 const ALLOWED_ORIGINS = [
-  'http://localhost:5174',
-  'http://localhost:4173',
+  ...(process.env.NODE_ENV !== 'production'
+    ? ['http://localhost:5174', 'http://localhost:4173']
+    : []),
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
@@ -292,10 +293,8 @@ app.get('/api/conversations/:id/messages', auth, apiLimiter, async (req, res) =>
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 const io = new Server(server, {
-  cors: {
-    origin: ALLOWED_ORIGINS,
-    credentials: true,
-  },
+  cors: { origin: ALLOWED_ORIGINS, credentials: true },
+  maxHttpBufferSize: 100_000, // 100KB — well above any legitimate encrypted message
 });
 
 // Auth middleware for sockets
