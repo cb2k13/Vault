@@ -278,7 +278,7 @@ app.get('/api/conversations/:id/messages', auth, apiLimiter, async (req, res) =>
 
     const { data, error } = await supabase
       .from('messages')
-      .select('id, sender_id, ciphertext, iv, enc_key_recipient, enc_key_sender, created_at')
+      .select('id, sender_id, ciphertext, iv, enc_key_recipient, enc_key_sender, reply_to_id, created_at')
       .eq('conversation_id', req.params.id)
       .order('created_at', { ascending: true })
       .limit(200);
@@ -346,13 +346,14 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', async (payload) => {
     if (!socketRateOk(uid)) return;
-    const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender } = payload;
+    const { conversation_id, recipient_id, ciphertext, iv, enc_key_recipient, enc_key_sender, reply_to_id } = payload;
     if (!isUUID(conversation_id) || !isUUID(recipient_id)) return;
     if (typeof ciphertext !== 'string' || typeof iv !== 'string' ||
         typeof enc_key_recipient !== 'string' || typeof enc_key_sender !== 'string') return;
     // Size limits: RSA-2048 key = 256 bytes → ~344 base64 chars; IV = 12 bytes → 16 chars
     if (ciphertext.length > 65536 || iv.length > 32 ||
         enc_key_recipient.length > 512 || enc_key_sender.length > 512) return;
+    if (reply_to_id !== undefined && !isUUID(reply_to_id)) return;
 
     try {
       // Verify sender is a participant
@@ -374,8 +375,9 @@ io.on('connection', (socket) => {
           iv,
           enc_key_recipient,
           enc_key_sender,
+          ...(reply_to_id && { reply_to_id }),
         })
-        .select('id, sender_id, conversation_id, ciphertext, iv, enc_key_recipient, enc_key_sender, created_at')
+        .select('id, sender_id, conversation_id, ciphertext, iv, enc_key_recipient, enc_key_sender, reply_to_id, created_at')
         .single();
 
       if (error) { console.error('Save message error:', error.message); return; }

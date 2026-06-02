@@ -20,6 +20,7 @@ export default function ChatPage() {
   const [readConvIds, setReadConvIds]     = useState(new Set());
   const [showSettings, setShowSettings]   = useState(false);
   const [reactions, setReactions]         = useState(new Map()); // msgId -> Map<emoji, Set<userId>>
+  const [replyTo, setReplyTo]             = useState(null); // { id, text }
 
   // Presence + typing socket events
   useEffect(() => {
@@ -90,6 +91,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeConv) return;
     setMessages([]);
+    setReplyTo(null);
     getMessages(activeConv.id).then(setMessages).catch(console.error);
   }, [activeConv?.id]);
 
@@ -117,6 +119,8 @@ export default function ChatPage() {
   const handleSend = useCallback(async (plaintext) => {
     if (!activeConv || !privateKey || sending) return;
     setSending(true);
+    const replyToId = replyTo?.id ?? null;
+    setReplyTo(null);
     try {
       const otherId = activeConv.other_user.id;
 
@@ -138,13 +142,14 @@ export default function ChatPage() {
         conversation_id: activeConv.id,
         recipient_id: otherId,
         ...payload,
+        ...(replyToId && { reply_to_id: replyToId }),
       });
     } catch (err) {
       console.error('Send failed:', err);
     } finally {
       setSending(false);
     }
-  }, [activeConv, privateKey, user, sending]);
+  }, [activeConv, privateKey, user, sending, replyTo]);
 
   // When server echoes back the saved message, add it to thread
   useEffect(() => {
@@ -196,6 +201,10 @@ export default function ChatPage() {
       recipient_id: activeConv.other_user.id,
     });
   }, [activeConv]);
+
+  const handleReply = useCallback((msgId, text) => {
+    setReplyTo({ id: msgId, text });
+  }, []);
 
   function handleNewConversation(conv) {
     setConversations(prev => {
@@ -262,6 +271,7 @@ export default function ChatPage() {
               isRead={readConvIds.has(activeConv.id)}
               reactions={reactions}
               onReact={handleReact}
+              onReply={handleReply}
             />
 
             <MessageInput
@@ -269,6 +279,8 @@ export default function ChatPage() {
               disabled={sending || !privateKey}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
+              replyTo={replyTo}
+              onClearReply={() => setReplyTo(null)}
             />
           </>
         )}

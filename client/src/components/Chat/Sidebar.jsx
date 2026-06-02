@@ -90,11 +90,6 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
                   {unreadCounts.get(conv.id) > 99 ? '99+' : unreadCounts.get(conv.id)}
                 </span>
               )}
-              {unreadCounts.get(conv.id) > 0 && (
-                <span className="unread-badge">
-                  {unreadCounts.get(conv.id) > 99 ? '99+' : unreadCounts.get(conv.id)}
-                </span>
-              )}
             </button>
           );
         })}

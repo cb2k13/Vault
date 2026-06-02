@@ -4,7 +4,27 @@ import { decryptMessage } from '../../utils/crypto';
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
-function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, onReact }) {
+function ReplyQuote({ replyToId, messages, privateKey, userId }) {
+  const original = messages.find(m => m.id === replyToId);
+  const [text, setText] = useState(null);
+
+  useEffect(() => {
+    if (!original || !privateKey) return;
+    decryptMessage(original, privateKey, original.sender_id === userId)
+      .then(setText)
+      .catch(() => setText('…'));
+  }, [original?.id, privateKey]);
+
+  if (!original) return null;
+
+  return (
+    <div className="reply-quote">
+      <span className="reply-quote-text">{text ?? '🔓 decrypting…'}</span>
+    </div>
+  );
+}
+
+function Message({ msg, messages, privateKey, userId, showReceipt, isRead, msgReactions, onReact, onReply }) {
   const isSender   = msg.sender_id === userId;
   const [text, setText]       = useState(null);
   const [failed, setFailed]   = useState(false);
@@ -39,6 +59,12 @@ function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, o
       <div className="msg-col">
         {hovered && (
           <div className={`emoji-picker${isSender ? ' emoji-picker-left' : ' emoji-picker-right'}`}>
+            <button
+              className="emoji-btn reply-btn-inline"
+              title="Reply"
+              onClick={() => text && onReply?.(msg.id, text)}
+            >↩</button>
+            <span className="picker-divider">|</span>
             {EMOJIS.map(e => (
               <button key={e} className="emoji-btn" onClick={() => onReact(msg.id, e)}>{e}</button>
             ))}
@@ -46,6 +72,14 @@ function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, o
         )}
 
         <div className={`msg-bubble${isSender ? ' msg-bubble-self' : ' msg-bubble-other'}`}>
+          {msg.reply_to_id && (
+            <ReplyQuote
+              replyToId={msg.reply_to_id}
+              messages={messages}
+              privateKey={privateKey}
+              userId={userId}
+            />
+          )}
           {text === null && !failed && <span className="msg-decrypting">🔓 decrypting…</span>}
           {failed && <span className="msg-failed">⚠ decryption failed</span>}
           {text !== null && <span className="msg-text">{text}</span>}
@@ -77,7 +111,7 @@ function Message({ msg, privateKey, userId, showReceipt, isRead, msgReactions, o
   );
 }
 
-export default function MessageThread({ messages, privateKey, isRead, reactions, onReact }) {
+export default function MessageThread({ messages, privateKey, isRead, reactions, onReact, onReply }) {
   const { user } = useAuth();
   const bottomRef = useRef(null);
 
@@ -102,12 +136,14 @@ export default function MessageThread({ messages, privateKey, isRead, reactions,
         <Message
           key={msg.id}
           msg={msg}
+          messages={messages}
           privateKey={privateKey}
           userId={user.id}
           showReceipt={i === lastSentIdx}
           isRead={isRead}
           msgReactions={reactions.get(msg.id)}
           onReact={onReact}
+          onReply={onReply}
         />
       ))}
       <div ref={bottomRef} />
