@@ -84,8 +84,8 @@ export default function AuthPage() {
         </form>
 
         <div className="auth-notice">
-          <span className="lock-icon">🔐</span>
-          Your private key never leaves your device. The server stores only encrypted data.
+          <span className="lock-icon"></span>
+          Your private key never leaves your personal device. Messages are fully encrypted. 
         </div>
       </div>
     </div>

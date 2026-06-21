@@ -35,7 +35,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <div className="sidebar-logo">🔒 Vault</div>
+        <div className="sidebar-logo">Vault</div>
         <div className="sidebar-user">
           <span className="sidebar-username">{user?.username}</span>
           <button className="btn-icon" onClick={onSettingsOpen} title="Settings">⚙</button>
@@ -67,7 +67,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNewConver
 
       <div className="conv-list">
         {conversations.length === 0 && (
-          <div className="conv-empty">Search for a user above to start a conversation</div>
+          <div className="conv-empty">Search for a specific user above to start a conversation</div>
         )}
         {conversations.map(conv => {
           const other = conv.other_user;
