@@ -8,6 +8,18 @@ api.interceptors.request.use(cfg => {
   return cfg;
 });
 
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem('vault_token');
+      localStorage.removeItem('vault_user');
+      window.location.href = '/';
+    }
+    return Promise.reject(err);
+  }
+);
+
 export const registerUser  = (body) => api.post('/register', body).then(r => r.data);
 export const loginUser     = (body) => api.post('/login', body).then(r => r.data);
 export const searchUsers   = (q)    => api.get(`/users/search?q=${encodeURIComponent(q)}`).then(r => r.data);

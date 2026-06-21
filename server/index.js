@@ -353,7 +353,7 @@ io.on('connection', (socket) => {
     // Size limits: RSA-2048 key = 256 bytes → ~344 base64 chars; IV = 12 bytes → 16 chars
     if (ciphertext.length > 65536 || iv.length > 32 ||
         enc_key_recipient.length > 512 || enc_key_sender.length > 512) return;
-    if (reply_to_id !== undefined && !isUUID(reply_to_id)) return;
+    if (reply_to_id != null && !isUUID(reply_to_id)) return;
 
     try {
       // Verify sender is a participant
@@ -364,6 +364,13 @@ io.on('connection', (socket) => {
         .single();
 
       if (!conv || (conv.participant_a !== uid && conv.participant_b !== uid)) return;
+
+      // Verify reply reference belongs to the same conversation
+      if (reply_to_id) {
+        const { data: replyMsg } = await supabase
+          .from('messages').select('conversation_id').eq('id', reply_to_id).single();
+        if (!replyMsg || replyMsg.conversation_id !== conversation_id) return;
+      }
 
       // Save encrypted message — server only stores ciphertext
       const { data: msg, error } = await supabase
